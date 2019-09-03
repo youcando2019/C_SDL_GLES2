@@ -49,7 +49,7 @@ typedef struct
 
 void Obj_init(Obj * me, char* const path, char* const path_image, vec3 color, vec3 position, vec3 angle, vec3 scale, char* const vertexShader, char* const fragmentShader);
 void Obj_destroy(Obj * me);
-void Obj_afficher(Obj * me, mat4 projection, mat4 view, mat4 model_f, vec3 view_position);
+void Obj_afficher(Obj * me, mat4 projection, mat4 view, mat4 model_f);
 int Obj_load_colored(Obj * me, const char * path);
 int Obj_load(Obj * me, const char * path);
 void Obj_move(Obj * me, vec3 distance);

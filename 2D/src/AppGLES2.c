@@ -6,13 +6,11 @@ void AppGLES2_init(AppGLES2 * me)
     me->m_largeur = 0;
     me->m_hauteur = 0;
     me->m_contexteOpenGL = 0;
-    Input_init(&me->m_input);
 }
 
 void AppGLES2_destroy(AppGLES2 * me)
 {
     // Destruction du contexte OpenGL, de la vue principale et fin de l'application
-    Input_destroy(&me->m_input);
     SDL_GL_DeleteContext(me->m_contexteOpenGL);
     SDL_DestroyWindow(me->m_vuePrincipale);
     SDL_Quit();
@@ -28,7 +26,7 @@ int AppGLES2_initWindow(AppGLES2 * me)
     }
 
     // Récupération de la vue principale
-    me->m_vuePrincipale = SDL_CreateWindow("", 0, 0, 800, 600, SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL);
+    me->m_vuePrincipale = SDL_CreateWindow("", 0, 0, 800, 600, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
     if(me->m_vuePrincipale == 0)
     {
         printf("Erreur lors de la recuperation de la vue : %s \n", SDL_GetError());
@@ -56,30 +54,22 @@ int AppGLES2_initWindow(AppGLES2 * me)
 
     // Récupération des dimensions de la vue principale
     SDL_GetWindowSize(me->m_vuePrincipale, &me->m_largeur, &me->m_hauteur);
+    window_width = me->m_largeur;
+    window_height = me->m_hauteur;
+    if(window_height <= window_width)
+    {
+        pixel = 1.0f / (float) window_height;
+    }
+    else
+    {
+        pixel = 1.0f / (float) window_width;
+    }
 
     return 1;
 }
 
 int AppGLES2_initGL(AppGLES2 * me)
 {
-    #ifdef WIN32
-        // If you use SDL you can use: https://wiki.libsdl.org/SDL_GL_GetProcAddress
-        if (!gladLoadGLES2Loader((GLADloadproc)SDL_GL_GetProcAddress))
-        {
-            printf("Failed to initialize OpenGL context\n");
-            return -1;
-        }
-
-        /*
-        // Alternative use the builtin loader, e.g. if no other loader function is available
-        if (!gladLoadGL())
-        {
-            printf("Failed to initialize OpenGL context\n");
-            return -1;
-        }
-        */
-    #endif
-
     // Définition de la zone d'affichage
     glViewport(0, 0, me->m_largeur, me->m_hauteur);
 
@@ -91,59 +81,50 @@ int AppGLES2_initGL(AppGLES2 * me)
 
 void AppGLES2_bouclePrincipale(AppGLES2 * me)
 {
+    // Variables d'évènements
+    int terminer = 0;
+
     // Matrices projection et modelview
     mat4 projection;
-    //glm_perspective(70.0, (float) me->m_largeur / me->m_hauteur, 1.0, 1000.0, projection);
-    glm_ortho(-0.5f, 0.5f, -0.5f, 0.5f, 1.0, 10.0, projection);
-    mat4 view;
-    glm_mat4_identity(view);
-    mat4 model;
-    glm_mat4_identity(model);
-    mat4 modelSauvgarde;
-    glm_mat4_copy(model, modelSauvgarde);
+    glm_perspective(70.0, (float) me->m_largeur / (float) me->m_hauteur, 1.0, 100.0, projection);
+    //glm_ortho(0.0f, window_width, window_height, 0.0f, 0.01f, 100.0f, projection);
+    mat4 modelview;
+    glm_mat4_identity(modelview);
+    mat4 modelviewSauvgarde;
+    glm_mat4_copy(modelview, modelviewSauvgarde);
 
-    // Cam�ra mobile
-    Camera camera;
-    Camera_init(&camera, (vec3){0.001, 3, 0.001}, (vec3){0, 0, 0}, (vec3){0, 1, 0}, 0.5, 0.5);
-    Input_afficherPointeur(&me->m_input, 0);
-    Input_capturerPointeur(&me->m_input, 1);
+    CubeColor cubeColor;
+    CubeColor_init(1.0, "Shaders/couleur3D.vert", "Shaders/couleur3D.frag", &cubeColor);
+    Cube cube;
+    Cube_init(1.0, "Textures/caisse.jpg", 1.0, "Shaders/texture.vert", "Shaders/texture.frag", &cube);
 
-    Obj button;
-    Obj_init(&button,
-                  "plane.obj",
-                  "Textures/caisse.jpg",
-                  (vec3){0.5, 0.2, 0.8},
-                  (vec3){0.0, 0.0, 0.0},
-                  (vec3){0.0, 0.0, 0.0},
-                  (vec3){1.0, 1.0, 1.0},
-                  "Shaders/texture.vert",
-                  "Shaders/texture.frag");
+    Button btn;
+    Button_init(&btn, 200, 200, "Textures/caisse.jpg", "Shaders/texture2D.vert", "Shaders/texture2D.frag");
 
     // Boucle principale
-    while(!Input_terminer(&me->m_input))
+    while(!terminer)
     {
-        // Gestion des evenements
-        Input_updateEvenements(&me->m_input);
-        if(Input_getTouche(&me->m_input, SDL_SCANCODE_ESCAPE))
-        {
-            break;
-        }
-
-        Camera_deplacer(&camera, &me->m_input);
+        // Gestion des évènements
+        SDL_PollEvent(&me->m_evenements);
+        if(me->m_evenements.window.event == SDL_WINDOWEVENT_CLOSE)
+            terminer = 1;
 
         // Nettoyage de la vue
-        glClearColor(0.1, 0.1, 0.1, 1.0);
+        glClearColor(0.5, 0.5, 0.8, 1.0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Placement de la caméra
-        Camera_lookat(&camera, &view);
+        glm_lookat((vec3){0, 0, 1}, (vec3){0, 0, 0}, (vec3){0, 1, 0}, modelview);
+        glm_mat4_copy(modelview, modelviewSauvgarde);
 
-        Obj_afficher(&button, projection, view, model);
+        Button_afficher(&btn, &projection, &modelview);
+        CubeColor_afficher(&projection, &modelview, &cubeColor);
+        Cube_afficher(&projection, &modelview, &cube);
 
         // Actualisation de la vue
         SDL_GL_SwapWindow(me->m_vuePrincipale);
     }
-
-    Obj_destroy(&button);
-    Camera_destroy(&camera);
+    Button_destroy(&btn);
+    CubeColor_destroy(&cubeColor);
+    Cube_destroy(&cube);
 }

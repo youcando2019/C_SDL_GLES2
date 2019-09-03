@@ -53,7 +53,7 @@ void Obj_destroy(Obj * me)
     free(me->m_vertices);
 }
 
-void Obj_afficher(Obj * me, mat4 projection, mat4 view, mat4 model_f, vec3 view_position)
+void Obj_afficher(Obj * me, mat4 projection, mat4 view, mat4 model_f)
 {
     mat4 model;
     glm_mat4_copy(model_f, model);
